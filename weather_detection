@@ -86,8 +86,20 @@ model.compile(optimizer=Adamax(),loss="categorical_crossentropy",metrics=["accur
 # Başarı metriği olarak "accuracy" kullanılır. 
 
 model.fit(trian_gen,validation_data=valid_gen,epochs=100,verbose=1) 
+model.evaluate(trian_gen) #modelin eğitim veri seti üzerinde başarısı test edilir.
+model.evaluate(test_gen) #modelin test veri seti üzerinde başarısı test edilir.
+model.evaluate(valid_gen) #modelin doğrulama veri seti üzerinde başarısı test edilir. 
 
+y_pred_probs = model.predict(test_gen)  
+y_pred = np.argmax(y_pred_probs, axis=1) 
+y_true = test_gen.classes  #
+class_names = list(test_gen.class_indices.keys()) 
+cm = confusion_matrix(y_true, y_pred)
+print("Classification Report:")
+print(classification_report(y_true, y_pred, target_names=class_names))
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
+disp.plot(cmap=plt.cm.Blues)
+plt.title("Confusion Matrix")
+plt.show()
 
-
-
-
+model.save("Model.h5") 
