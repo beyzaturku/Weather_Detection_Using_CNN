@@ -28,3 +28,66 @@ from sklearn.metrics import confusion_matrix,classification_report,ConfusionMatr
 import warnings
 warnings.filterwarnings("ignore")
 
+# Prepare Data Frame 
+filedir="/kaggle/input/multiclass-weather-dataset/Multi-class Weather Dataset"
+folds=os.listdir(filedir)
+file_paths=[]
+labels=[]
+for fold in folds:
+    foldpath=os.path.join(filedir,fold)
+    paths=os.listdir(foldpath)
+    for path in paths:
+        filepath=os.path.join(foldpath,path)
+        file_paths.append(filepath)
+        labels.append(fold)
+
+df=pd.DataFrame(data={"File Path":file_paths,"Labels":labels}) # veri seti file path ve label listelenir. 
+df 
+
+train_df,dumpy_df=train_test_split(df,test_size=0.2,random_state=42,stratify=df["Labels"])
+test_df,vaild_df=train_test_split(dumpy_df,test_size=0.5,random_state=42,stratify=dumpy_df["Labels"]) #veri seti eğitim ve test olarak bölünür
+
+# Preprocessing 
+tr_gen=ImageDataGenerator( # data augmentation uygulanır. 
+    rotation_range=0.45, # görüntüler max 45 derece döndürülür
+    width_shift_range=0.2, # görüntüler yatayda ve dikeyda %20 oranda kaydırılır.
+    height_shift_range=0.2,
+    zoom_range=0.2, # görüntüler %20 oranında yakınlaştırılır ve uzaklaştırılır
+    horizontal_flip=True) # görüntüler yatay çevrilebilir.
+trian_gen=tr_gen.flow_from_dataframe(train_df,x_col="File Path",y_col="Labels",target_size=(224,224),class_mode="categorical",color_mode="rgb",path_size=16)
+gen=ImageDataGenerator() #doğrulama ve test veri setlerinde veri artıma yapılmaz. görüntüler sadece yeniden boyutlandırılır ve normalize edilir. 
+valid_gen=gen.flow_from_dataframe(vaild_df,x_col="File Path",y_col="Labels",target_size=(224,224),class_modde="categorical",color_mode="rgb",patch_size=16)
+test_gen=gen.flow_from_dataframe(test_df,x_col="File Path",y_col="Labels",target_size=(224,224),class_modde="categorical",color_mode="rgb",patch_size=16)
+
+#flow_from_dataframe -> veri setleri hazırlanır. 
+# sonuç olarak train, test ve valid setlerinde kaçar tane görüntü olduğu yazar. 
+
+# Model Architecture
+# Keras kütüphanesi ve Sequential API ile yazılmış bir görüntü sınıflandırma modeli:
+model=Sequential([
+    Conv2D(128,kernel_size=(3,3),activation="relu",input_shape=(224,224,3)),
+    MaxPooling2D((2,2)),
+    Conv2D(128,kernel_size=(3,3),activation="relu"),
+    MaxPooling2D((2,2)),
+    Conv2D(128,kernel_size=(3,3),activation="relu"),
+    MaxPooling2D((2,2)),
+    Conv2D(128,kernel_size=(3,3),activation="relu"),
+    MaxPooling2D((2,2)),
+    Flatten(),
+    Dense(4,activation="softmax") # 4 sınıflı bir model olduğunu buradan anladık. 4 yerine 10 olsaydı 10 sınıflı model olurdu. 
+])
+model.summary() # modelin katmanlarını, her katmandaki parametre sayısını ve toplam parametre sayısını gösterir. 
+# Bu model, 4 sınıflı bir görüntü sınıflandırma görevi yapar. 
+
+model.compile(optimizer=Adamax(),loss="categorical_crossentropy",metrics=["accuracy"])
+# eğitim sırasında kullanılacak optimizasyon yöntemi, kayıp fonksiyonu ve başarı ölçütleri tanımlanır. 
+# Optimizasyon yöntemi: Adam fonksiyonu. 
+# Kayıp Fonksiyonu: Categorical Crossentropy (Kategorik Çapraz Entropi) -> Modelin tahmin ettiği olasılıklar (softmax çıktı katmanından gelir) ile gerçek etiketler (one-hot kodlamasıyla) arasındaki farkı ölçer.
+# Başarı metriği olarak "accuracy" kullanılır. 
+
+model.fit(trian_gen,validation_data=valid_gen,epochs=100,verbose=1) 
+
+
+
+
+
